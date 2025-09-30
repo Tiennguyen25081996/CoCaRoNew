@@ -71,13 +71,22 @@ def handle_join(data):
 @socketio.on("disconnect")
 def handle_disconnect():
     if request.sid in players:
-        emit("message", {"msg": f"{players[request.sid]} left."}, broadcast=True)
+        name = players[request.sid]
         del players[request.sid]
+
+        emit("message", {"msg": f"{name} đã thoát. Bạn thắng!"}, broadcast=True, include_self=False)
+
+        global board, current_player
+        board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        current_player = "X"
+        socketio.emit("reset", {"board": board})
+
 
 @socketio.on("quit_request")
 def handle_quit_request():
     # gửi yêu cầu quit tới tất cả client khác
     emit("quit_confirm", {"from": request.sid}, broadcast=True, include_self=False)
+
 
 @socketio.on("quit_response")
 def handle_quit_response(data):
