@@ -6,9 +6,10 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 GRID_SIZE = 15
 board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-current_player = "X"
 winning_cells = []
-players = {}
+players = {}              # {sid: name}
+player_symbols = {}       # {sid: "X" hoặc "O"}
+current_player = None
 
 def check_win(player):
     global winning_cells
@@ -42,13 +43,36 @@ def index():
 @socketio.on("move")
 def handle_move(data):
     global current_player
+
+    sid = request.sid
+    if sid not in players:
+        return
+
+    if len(players) < 2:
+        emit("message", {"msg": "Chưa đủ 2 người chơi để bắt đầu."})
+        return
+
+    if sid != current_player:
+        emit("message", {"msg": "Không phải lượt của bạn!"})
+        return
+
     x, y = data["x"], data["y"]
+    symbol = player_symbols[sid]
+
     if board[y][x] == "":
-        board[y][x] = current_player
-        win = check_win(current_player)
-        emit("update", {"board": board, "win": win, "winning_cells": winning_cells}, broadcast=True)
-        current_player = "O" if current_player == "X" else "X"
-        socketio.emit("reset_timer")
+        board[y][x] = symbol
+        win = check_win(symbol)
+
+        socketio.emit("move", {"x": x, "y": y, "player": symbol, "win": win})
+
+        if win:
+            socketio.emit("message", {"msg": f"{players[sid]} thắng!"})
+            reset_board()
+        else:
+            next_sid = [s for s in players if s != sid][0]
+            current_player = next_sid
+            socketio.emit("turn", {"player": player_symbols[next_sid]})
+
 
 @socketio.on("reset")
 def handle_reset():
@@ -64,20 +88,48 @@ def handle_connect():
 
 @socketio.on("join")
 def handle_join(data):
-    name = data.get("name", f"Player{len(players)+1}")
-    players[request.sid] = name
-    emit("message", {"msg": f"{name} đã tham gia."}, broadcast=True, include_self=False)
+    global current_player
 
+    name = data.get("name", f"Player{len(players)+1}")
+    sid = request.sid
+
+    if len(players) >= 2:
+        emit("message", {"msg": "Phòng đã đủ người, bạn chỉ có thể xem."})
+        return
+
+    players[sid] = name
+    symbol = "X" if len(players) == 1 else "O"
+    player_symbols[sid] = symbol
+
+    emit("joined", {"name": name, "symbol": symbol})  # gửi riêng cho client mới join
+    emit("message", {"msg": f"{name} đã tham gia với quân {symbol}."}, broadcast=True, include_self=False)
+
+    if len(players) == 2:
+        # chọn X đi trước
+        for s, sym in player_symbols.items():
+            if sym == "X":
+                current_player = s
+                socketio.emit("turn", {"player": sym})
+                break
 @socketio.on("disconnect")
 def handle_disconnect():
     if request.sid in players:
-        emit("message", {"msg": f"{players[request.sid]} left."}, broadcast=True)
+        name = players[request.sid]
         del players[request.sid]
+
+        emit("message", {"msg": f"{name} đã thoát. Bạn thắng!"}, broadcast=True, include_self=False)
+
+        global board, current_player
+        board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        current_player = "X"
+        socketio.emit("reset", {"board": board})
+
 
 @socketio.on("quit_request")
 def handle_quit_request():
     # gửi yêu cầu quit tới tất cả client khác
     emit("quit_confirm", {"from": request.sid}, broadcast=True, include_self=False)
+
 
 @socketio.on("quit_response")
 def handle_quit_response(data):
@@ -93,6 +145,12 @@ def handle_quit_response(data):
         emit("message", {"msg": "Bạn đã thắng!"}, to=request.sid)
     else:
         emit("message", {"msg": "Đối thủ không đồng ý kết thúc game."}, to=data["from"])
+
+def reset_board():
+    global board, current_player
+    board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+    current_player = None
+    socketio.emit("reset", {"board": board})
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8080)

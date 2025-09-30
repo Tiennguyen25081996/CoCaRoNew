@@ -51,6 +51,5 @@ def reset():
     board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     current_player = "X"
     return jsonify({"board": board})
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)

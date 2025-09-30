@@ -22,6 +22,25 @@ while (!playerName) {
   playerName = prompt("Nhập tên của bạn:");
 }
 socket.emit("join", { name: playerName });
+let mySymbol = null;
+let currentTurn = null;
+socket.on("joined", (data) => {
+    mySymbol = data.symbol;
+    alert("Bạn tham gia với quân " + mySymbol);
+});
+
+socket.on("turn", (data) => {
+    currentTurn = data.player;
+    document.getElementById("turn-info").textContent = "Lượt của: " + data.player;
+});
+
+cell.addEventListener("click", () => {
+    if (mySymbol !== currentTurn) {
+        alert("Chưa đến lượt bạn!");
+        return;
+    }
+    socket.emit("move", { x: i, y: j });
+});
 let timer = 30;
 let timerInterval;
 
@@ -83,3 +102,12 @@ socket.on("message", data => {
 function resetBoard() {
     socket.emit("reset");
 }
+
+socket.on("reset", (data) => {
+    updateBoard(data.board, []);
+    document.getElementById("turn-info").textContent = "Ván mới bắt đầu!";
+});
+
+socket.on("turn", (data) => {
+    document.getElementById("turn-info").textContent = "Lượt của: " + data.player;
+});
