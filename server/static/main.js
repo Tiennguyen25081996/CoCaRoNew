@@ -83,3 +83,7 @@ socket.on("message", data => {
 function resetBoard() {
     socket.emit("reset");
 }
+
+socket.on("turn", (data) => {
+    document.getElementById("turn-info").textContent = "Lượt của: " + data.player;
+});
