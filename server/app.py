@@ -58,7 +58,11 @@ def handle_reset():
     emit("update", {"board": board, "win": False, "winning_cells": []}, broadcast=True)
 
 @socketio.on("connect")
-def handle_connect(data):
+def handle_connect():
+    print(f"Client {request.sid} connected")
+
+@socketio.on("join")
+def handle_join(data):
     name = data.get("name", f"Player{len(players)+1}")
     players[request.sid] = name
     emit("message", {"msg": f"{name} đã tham gia."}, broadcast=True)

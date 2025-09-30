@@ -17,6 +17,12 @@ for (let y = 0; y < GRID_SIZE; y++) {
     }
 }
 
+let playerName = "";
+while (!playerName) {
+  playerName = prompt("Nhập tên của bạn:");
+}
+socket.emit("join", { name: playerName });
+
 socket.on("update", data => {
     updateBoard(data.board, data.winning_cells);
     if (data.win) alert("Player wins!");
@@ -39,11 +45,6 @@ function updateBoard(board, winCells) {
 function quitGame() {
     socket.emit("quit_request");
 }
-let playerName = "";
-while (!playerName) {
-  playerName = prompt("Nhập tên của bạn:");
-}
-socket.emit("connect", { name: playerName });
 
 // Khi đối thủ bấm quit
 socket.on("quit_confirm", data => {
