@@ -48,6 +48,7 @@ def handle_move(data):
         win = check_win(current_player)
         emit("update", {"board": board, "win": win, "winning_cells": winning_cells}, broadcast=True)
         current_player = "O" if current_player == "X" else "X"
+        socketio.emit("reset_timer")
 
 @socketio.on("reset")
 def handle_reset():

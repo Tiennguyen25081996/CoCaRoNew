@@ -22,7 +22,30 @@ while (!playerName) {
   playerName = prompt("Nhập tên của bạn:");
 }
 socket.emit("join", { name: playerName });
+let timer = 30;
+let timerInterval;
 
+function startTimer() {
+    clearInterval(timerInterval);
+    timer = 30;
+    document.getElementById("timer").textContent = timer;
+
+    timerInterval = setInterval(() => {
+        timer--;
+        document.getElementById("timer").textContent = timer;
+
+        if (timer <= 0) {
+            clearInterval(timerInterval);
+            alert("Hết giờ! Bạn mất lượt.");
+            socket.emit("timeout");
+        }
+    }, 1000);
+}
+
+// Nhận reset timer từ server
+socket.on("reset_timer", () => {
+    startTimer();
+});
 socket.on("update", data => {
     updateBoard(data.board, data.winning_cells);
     if (data.win) alert("Player wins!");
