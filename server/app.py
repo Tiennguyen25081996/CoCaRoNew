@@ -65,7 +65,7 @@ def handle_connect():
 def handle_join(data):
     name = data.get("name", f"Player{len(players)+1}")
     players[request.sid] = name
-    emit("message", {"msg": f"{name} đã tham gia."}, broadcast=True)
+    emit("message", {"msg": f"{name} đã tham gia."}, broadcast=True, include_self=False)
 
 @socketio.on("disconnect")
 def handle_disconnect():
