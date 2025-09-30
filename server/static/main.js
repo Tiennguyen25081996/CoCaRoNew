@@ -36,6 +36,21 @@ function updateBoard(board, winCells) {
     });
 }
 
+function quitGame() {
+    socket.emit("quit_request");
+}
+
+// Khi đối thủ bấm quit
+socket.on("quit_confirm", data => {
+    const accept = confirm("Đối thủ muốn thoát game. Bạn có đồng ý không?");
+    socket.emit("quit_response", { from: data.from, accept: accept });
+});
+
+// Hiện thông báo kết quả
+socket.on("message", data => {
+    alert(data.msg);
+});
+
 function resetBoard() {
     socket.emit("reset");
 }
