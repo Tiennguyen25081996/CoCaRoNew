@@ -39,6 +39,11 @@ function updateBoard(board, winCells) {
 function quitGame() {
     socket.emit("quit_request");
 }
+let playerName = "";
+while (!playerName) {
+  playerName = prompt("Nhập tên của bạn:");
+}
+socket.emit("connect", { name: playerName });
 
 // Khi đối thủ bấm quit
 socket.on("quit_confirm", data => {
