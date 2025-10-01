@@ -29,8 +29,14 @@
 </style>
 </head>
 <body>
+<div id="quitModal" style="display:none; position:fixed; top:40%; left:40%;
+     background:#fff; border:1px solid #ccc; padding:20px; z-index:9999;">
+  <p>Đối thủ muốn thoát game. Bạn có đồng ý không?</p>
+  <button id="btnQuitYes">Đồng ý</button>
+  <button id="btnQuitNo">Không</button>
+</div>
+<div id="turn-info" style="margin:10px; font-weight:bold;"></div>
 <div class="parent">
-      <div id="turn-info" style="margin:10px; font-weight:bold;"></div>
       <div id="board"></div>
       <div style="margin-left:20px;">
         <h3>Timer</h3>

@@ -1,5 +1,8 @@
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -68,6 +71,7 @@ def handle_move(data):
         if win:
             socketio.emit("message", {"msg": f"{players[sid]} thắng!"})
             reset_board()
+            socketio.emit("update", {"board": board, "win": False, "winning_cells": []})
         else:
             next_sid = [s for s in players if s != sid][0]
             current_player = next_sid
@@ -76,15 +80,12 @@ def handle_move(data):
 
 @socketio.on("reset")
 def handle_reset():
-    global board, current_player, winning_cells
-    board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-    current_player = "X"
-    winning_cells = []
+    reset_board()
     emit("update", {"board": board, "win": False, "winning_cells": []}, broadcast=True)
 
 @socketio.on("connect")
 def handle_connect():
-    print(f"Client {request.sid} connected")
+    logger.info(f"Client {request.sid} connected")
 
 @socketio.on("join")
 def handle_join(data):
@@ -124,33 +125,58 @@ def handle_disconnect():
         current_player = "X"
         socketio.emit("reset", {"board": board})
 
+        if len(players) == 2:
+            for sid, pname in players.items():
+                if pname != name:  # chọn người còn lại
+                    current_player = sid
+                    socketio.emit("turn", {"player": player_symbols[sid]})
+                    break
 
 @socketio.on("quit_request")
 def handle_quit_request():
-    # gửi yêu cầu quit tới tất cả client khác
-    emit("quit_confirm", {"from": request.sid}, broadcast=True, include_self=False)
+    requester = request.sid
+    opponents = [sid for sid in players if sid != requester]
+
+    if opponents:
+        opponent_sid = opponents[0]
+        emit("quit_confirm", {"from": requester}, to=opponent_sid)
 
 
 @socketio.on("quit_response")
 def handle_quit_response(data):
-    # data = {"from": "...", "accept": True/False}
-    if data["accept"]:
-        # Reset game và gửi thông báo thắng/thua
-        global board, current_player, winning_cells
-        board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-        current_player = "X"
-        winning_cells = []
-        emit("update", {"board": board, "win": False, "winning_cells": []}, broadcast=True)
+    global current_player, board
+    logger.info(f"quit_response: {data}")
+
+    if data.get("accept", False):
+        # 1. Reset board dữ liệu
+        reset_board()
+
+        # 2. Gửi cập nhật board mới cho tất cả
+        socketio.emit("update", {"board": board, "win": False, "winning_cells": []})
+
+        # 3. Thông báo kết quả
         emit("message", {"msg": "Bạn đã thua."}, to=data["from"])
         emit("message", {"msg": "Bạn đã thắng!"}, to=request.sid)
+
+        # 4. Nếu vẫn còn 2 người chơi -> chọn lại X đi trước
+        if len(players) == 2:
+            for sid, sym in player_symbols.items():
+                if sym == "X":
+                    current_player = sid
+                    socketio.emit("turn", {"player": sym})
+                    break
+
+        logger.info(f"Game reset xong, current_player = {current_player}, len(player_symbols) = {len(player_symbols)}")
+
     else:
         emit("message", {"msg": "Đối thủ không đồng ý kết thúc game."}, to=data["from"])
 
 def reset_board():
-    global board, current_player
+    global board, current_player, winning_cells
     board = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     current_player = None
-    socketio.emit("reset", {"board": board})
+    winning_cells = []
+    return board
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8080)
